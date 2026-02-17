@@ -6,6 +6,10 @@ typechain-types/
 
 # secrets
 .env
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
 
 # hardhat
 coverage/
