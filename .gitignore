@@ -1,0 +1,16 @@
+node_modules/
+dist/
+cache/
+artifacts/
+typechain-types/
+
+# secrets
+.env
+
+# hardhat
+coverage/
+coverage.json
+
+# misc
+.DS_Store
+*.log
