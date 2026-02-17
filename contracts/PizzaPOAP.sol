@@ -2,14 +2,14 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
 /// @title PizzaPOAP - soulbound attendance tokens for pizza dao community calls
 /// @notice erc-721 tokens that are non-transferable (soulbound) to prevent farming.
 ///         each token proves a wallet attended a specific community call event.
-contract PizzaPOAP is ERC721, Ownable {
+contract PizzaPOAP is ERC721, Ownable2Step {
     using Strings for uint256;
 
     // -------------------------------------------------------
@@ -74,6 +74,11 @@ contract PizzaPOAP is ERC721, Ownable {
         string calldata imageURI,
         uint256 eventDate
     ) external onlyOwner returns (uint256 eventId) {
+        // reject strings that would break on-chain json metadata
+        _requireSafeJson(name);
+        _requireSafeJson(description);
+        _requireSafeJson(imageURI);
+
         eventId = _nextEventId++;
 
         events[eventId] = Event({
@@ -197,5 +202,20 @@ contract PizzaPOAP is ERC721, Ownable {
     /// @notice total events created
     function totalEvents() external view returns (uint256) {
         return _nextEventId;
+    }
+
+    // -------------------------------------------------------
+    // internal: input validation
+    // -------------------------------------------------------
+
+    /// @notice rejects strings containing " or \ which would break on-chain json.
+    ///         think of this as a bouncer -- block bad chars at the door instead of
+    ///         trying to escape them every time tokenURI is called.
+    function _requireSafeJson(string calldata str) internal pure {
+        bytes memory b = bytes(str);
+        for (uint256 i = 0; i < b.length; i++) {
+            bytes1 ch = b[i];
+            require(ch != 0x22 && ch != 0x5C, "invalid char: \" or \\ in string");
+        }
     }
 }
