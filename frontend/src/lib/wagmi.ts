@@ -34,7 +34,7 @@ const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "pizzapoap-dev";
 
 export const wagmiConfig = getDefaultConfig({
-  appName: "PizzaPOAP Admin",
+  appName: "Pizza Call Token Admin",
   projectId: walletConnectProjectId,
   chains: [monadTestnet],
   ssr: true, // next.js app router needs ssr: true
