@@ -83,7 +83,17 @@ function EventCard({ eventId }: { eventId: number }) {
     );
   }
 
+  // viem returns named tuple fields as object properties
+  // the cast goes through unknown to avoid typescript narrowing issues
   const evt = rawEvent as unknown as EventData;
+
+  // guard: if fields haven't populated yet, keep showing skeleton
+  if (!evt.name) {
+    return (
+      <div className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+    );
+  }
+
   const date = new Date(Number(evt.eventDate) * 1000);
   const dateStr = date.toLocaleDateString("en-US", {
     month: "short",
