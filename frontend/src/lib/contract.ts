@@ -1,7 +1,10 @@
 // pizzapoap contract config for the frontend
-// the abi only includes functions the admin dashboard actually calls
+// parseAbi converts human-readable strings into the json abi objects viem needs
+// using raw strings causes "Cannot use 'in' operator" errors at runtime
 
-export const PIZZA_POAP_ABI = [
+import { parseAbi } from "viem";
+
+export const PIZZA_POAP_ABI = parseAbi([
   // read
   "function owner() view returns (address)",
   "function totalEvents() view returns (uint256)",
@@ -10,7 +13,7 @@ export const PIZZA_POAP_ABI = [
   // write (owner only)
   "function createEvent(string name, string description, string imageURI, uint256 eventDate) returns (uint256)",
   "function setEventActive(uint256 eventId, bool active)",
-] as const;
+]);
 
 // contract address comes from the environment variable
 // set NEXT_PUBLIC_PIZZA_POAP_CONTRACT in frontend/.env.local

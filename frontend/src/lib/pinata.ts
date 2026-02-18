@@ -55,7 +55,8 @@ export async function uploadToIPFS(file: File): Promise<UploadResult> {
 
 // resolve an ipfs:// uri to a https:// url for displaying in the browser
 // (browsers can't fetch ipfs:// directly, so we use a public gateway)
-export function ipfsToHttp(uri: string): string {
+export function ipfsToHttp(uri: string | undefined): string {
+  if (!uri) return "";
   if (uri.startsWith("ipfs://")) {
     return `https://ipfs.io/ipfs/${uri.slice(7)}`;
   }
