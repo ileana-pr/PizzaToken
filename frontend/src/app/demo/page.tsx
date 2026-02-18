@@ -9,19 +9,19 @@ import { SpeakerNotes } from "@/components/SpeakerNotes";
 
 const PROBLEM_POINTS = [
   {
-    icon: "🤝",
-    heading: "PizzaDAO holds weekly community calls",
-    body: "Dozens of contributors join each week. There's no on-chain proof they showed up.",
+    icon: "😓",
+    heading: "POAP exists — but it's a manual mess",
+    body: "PizzaDAO already issues POAPs for weekly calls. But it's done by hand: staff tracks who showed up, manually airdrops each token. With a lean team, tokens get missed or delayed every single week.",
   },
   {
-    icon: "🏷️",
-    heading: "Paper POAPs don't cut it",
-    body: "Off-chain spreadsheets, centralized platforms, or manual airdrops — all fragile, none trustless.",
+    icon: "🌾",
+    heading: "Manual = farmable + unreliable",
+    body: "When distribution is human-powered, bad actors game it. People join for 30 seconds to grab the token. Staff burn out. Not everyone who actually attended gets one. The record is dirty.",
   },
   {
-    icon: "✅",
-    heading: "The fix: per-event attendance tokens on Monad",
-    body: "Admin creates an event, artwork goes to IPFS, attendees get an ERC-721 token minted straight to their wallet.",
+    icon: "⚡",
+    heading: "The fix: Discord bot → auto-mint, no staff needed",
+    body: "Pizza Token unifies the Discord attendance bot with the NFT mint. After each call the dispense script pulls the attendance list and sends an ERC-721 token automatically to every wallet that was there.",
   },
 ];
 
@@ -62,6 +62,12 @@ const STACK = [
     detail: "Connect button, chain switching, WalletConnect — zero config",
     color: "border-pink-500 text-pink-400",
   },
+  {
+    layer: "Attendance",
+    name: "Discord Bot → Dispense Script",
+    detail: "Bot exports attendee wallet list · npm run dispense batch-mints to every address",
+    color: "border-indigo-500 text-indigo-400",
+  },
 ];
 
 // each step maps to roughly 30 seconds of talking
@@ -99,8 +105,8 @@ const FLOW_STEPS = [
   {
     time: "2:30",
     step: "Dispense tokens to attendees",
-    detail: "Off-dashboard script reads the attendee list and batch-mints tokens",
-    code: `npm run dispense  // sends ERC-721 to each attendee address`,
+    detail: "Discord bot exports the attendance list → dispense script batch-mints an ERC-721 to every wallet that was in the call. No manual step, no farming.",
+    code: `npm run dispense  // reads discord attendance list, mints to each wallet`,
   },
 ];
 
@@ -115,7 +121,7 @@ export default function DemoPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🍕</span>
-            <span className="font-bold text-white">Pizza Call Token</span>
+            <span className="font-bold text-white">Pizza Token</span>
             <span className="ml-2 rounded bg-orange-900/40 px-2 py-0.5 text-xs text-orange-400 font-mono">
               demo
             </span>
@@ -135,12 +141,19 @@ export default function DemoPage() {
         <section>
           <SectionLabel number="01" label="The Problem" time="~30 sec" />
           <h2 className="mt-3 text-3xl font-bold tracking-tight">
-            PizzaDAO needed a trustless way to prove who showed up.
+            PizzaDAO had attendance tokens. The problem was everything around them.
           </h2>
           <p className="mt-3 text-zinc-400 max-w-2xl">
-            Weekly community calls, no on-chain attendance record. We built a minimal
-            admin dashboard that turns each call into an ERC-721 token — one click
-            to create an event, one script to dispense tokens to attendees.
+            The on-chain record existed — but getting tokens to the right people was slow,
+            error-prone, and easy to game. We built a minimal admin dashboard that turns
+            each call into an ERC-721 token —{" "}
+            <span className="text-white font-medium">
+              one click to create an event, one script to dispense tokens to attendees.
+            </span>
+          </p>
+          <p className="mt-2 text-zinc-500 max-w-2xl text-sm">
+            The dispense script pulls directly from the Discord attendance bot output —
+            no manual list, no human error, no farming.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -161,11 +174,12 @@ export default function DemoPage() {
         <section>
           <SectionLabel number="02" label="Tech Stack" time="~45 sec" />
           <h2 className="mt-3 text-3xl font-bold tracking-tight">
-            Six layers, zero backend server.
+            Seven layers, zero backend server.
           </h2>
           <p className="mt-3 text-zinc-400 max-w-2xl">
-            Everything runs in the browser or on-chain. No DB, no API route, no
-            middleware — just the user's wallet, the contract, and IPFS.
+            Everything runs in the browser, on-chain, or as a local script. No DB,
+            no API route, no middleware. The Discord bot is the only external data source —
+            and it just produces a flat list of wallet addresses.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -250,8 +264,9 @@ export default function DemoPage() {
           <span className="text-5xl">🍕</span>
           <h2 className="mt-4 text-2xl font-bold">See it live.</h2>
           <p className="mt-2 text-sm text-zinc-400 max-w-md mx-auto">
-            Connect the admin wallet on Monad Testnet and create an event in
-            under 60 seconds. No backend, no gas fees on mainnet, fully open source.
+            Connect the admin wallet on Monad Testnet, create an event in under 60 seconds,
+            then run the dispense script — every wallet on the Discord attendance list gets
+            their token automatically. No staff. No farming.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 justify-center">
             <Link
@@ -279,7 +294,7 @@ export default function DemoPage() {
       {/* footer */}
       <footer className="border-t border-zinc-800 mt-12 py-6 text-center">
         <p className="text-xs text-zinc-600 font-mono">
-          PizzaDAO · Monad Testnet · IPFS · Next.js · wagmi · RainbowKit
+          Pizza Token · PizzaDAO · Monad Testnet · IPFS · Next.js · wagmi · RainbowKit · Discord
         </p>
       </footer>
 

@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useChainId, usePublicClient, useReadContract } from "wagmi";
 import { PIZZA_POAP_ABI, PIZZA_POAP_ADDRESS } from "@/lib/contract";
 import { monadTestnet } from "@/lib/wagmi";
-import { CreateEventForm } from "@/components/CreateEventForm";
+import { CallTokenSender } from "@/components/CallTokenSender";
 import { EventList } from "@/components/EventList";
 
 export default function Home() {
@@ -203,15 +203,15 @@ export default function Home() {
             {/* stats bar */}
             <StatsBar />
 
-            {/* create event form */}
+            {/* send call tokens -- unified create + dispense flow */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
               <h2 className="mb-1 text-base font-semibold text-white">
-                Create New Event
+                Send Call Tokens
               </h2>
               <p className="mb-5 text-sm text-zinc-500">
-                Creates a new on-chain event that tokens can be minted for.
+                Pick a call, upload the artwork, and send tokens to everyone in the attendance sheet.
               </p>
-              <CreateEventForm onEventCreated={() => setRefreshKey((k) => k + 1)} />
+              <CallTokenSender onSent={() => setRefreshKey((k) => k + 1)} />
             </div>
 
             {/* past events list */}
