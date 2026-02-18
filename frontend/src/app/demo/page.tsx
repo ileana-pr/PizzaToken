@@ -11,7 +11,7 @@ const PROBLEM_POINTS = [
   {
     icon: "😓",
     heading: "POAP exists — but it's a manual mess",
-    body: "PizzaDAO already issues POAPs for weekly calls. But it's done by hand: staff tracks who showed up, manually airdrops each token. With a lean team, tokens get missed or delayed every single week.",
+    body: "PizzaDAO already issues POAPs for weekly calls. Done by hand: staff tracks who showed up, manually airdrops each token. With a lean team, tokens get missed or delayed every single week.",
   },
   {
     icon: "🌾",
@@ -20,8 +20,8 @@ const PROBLEM_POINTS = [
   },
   {
     icon: "⚡",
-    heading: "The fix: Discord bot → auto-mint, no staff needed",
-    body: "Pizza Token unifies the Discord attendance bot with the NFT mint. After each call the dispense script pulls the attendance list and sends an ERC-721 token automatically to every wallet that was there.",
+    heading: "The fix: pick a call, upload art, click send",
+    body: "Pizza Token reads the attendance straight from Google Sheets. Admin picks the call, drops the artwork, hits Send — every wallet in the sheet gets an ERC-721 token. One action, no staff needed.",
   },
 ];
 
@@ -64,49 +64,102 @@ const STACK = [
   },
   {
     layer: "Attendance",
-    name: "Discord Bot → Dispense Script",
-    detail: "Bot exports attendee wallet list · npm run dispense batch-mints to every address",
+    name: "Google Sheets API",
+    detail: "Master sheet → call list · attendance sheet → Discord IDs · crew sheet → wallet map",
     color: "border-indigo-500 text-indigo-400",
+  },
+  {
+    layer: "API Route",
+    name: "Next.js /api/dispense",
+    detail: "Server-side: reads sheets → createEvent() → batchMint() via ethers.js — all in one POST",
+    color: "border-yellow-500 text-yellow-400",
   },
 ];
 
-// each step maps to roughly 30 seconds of talking
+// each step maps to roughly 25 seconds of talking
 const FLOW_STEPS = [
   {
     time: "0:00",
-    step: "Admin connects wallet",
-    detail: "RainbowKit checks if the connected address == contract owner()",
+    step: "Connect wallet — owner check",
+    detail: "RainbowKit connects the wallet. The app reads owner() from the contract — only the deployer address sees the dashboard.",
     code: `const isOwner = address?.toLowerCase() === ownerAddress?.toLowerCase();`,
   },
   {
-    time: "0:30",
-    step: "Fill event form + pick artwork",
-    detail: "Name, description, date, and an image file are entered in the dashboard",
-    code: `<CreateEventForm onEventCreated={() => setRefreshKey(k => k + 1)} />`,
+    time: "0:25",
+    step: "Step 1 — pick a call from the master sheet",
+    detail: "GET /api/dispense reads the Google master sheet and returns every weekly call as a card with date and attendance count. Admin clicks the one they want.",
+    code: `// GET /api/dispense\nconst calls = await readMasterSheet(); // returns CallRow[]\n// CallRow: { date, sheetId, attendanceCount, masterRow }`,
   },
   {
-    time: "1:00",
-    step: "Image → IPFS via Pinata",
-    detail: "Pinata's pinFileToIPFS endpoint returns a CID, stored as ipfs:// URI",
+    time: "0:55",
+    step: "Step 2 — upload token artwork",
+    detail: "Once a call is selected the artwork uploader appears. Admin drops the image — it stays local until Send is hit.",
+    code: `// client-side preview only at this point\nconst preview = URL.createObjectURL(file);`,
+  },
+  {
+    time: "1:20",
+    step: "Artwork → IPFS via Pinata",
+    detail: "On Send, the client uploads the image to Pinata first. The ipfs:// URI is returned and passed to the server.",
     code: `const result = await uploadToIPFS(imageFile);\n// result.uri === "ipfs://Qm..."`,
   },
   {
-    time: "1:30",
-    step: "createEvent() tx → Monad",
-    detail: "wagmi's writeContract sends the tx; useWaitForTransactionReceipt waits for confirmation",
-    code: `writeContract({ functionName: "createEvent",\n  args: [name, desc, ipfsURI, BigInt(unixDate)] });`,
+    time: "1:45",
+    step: "Server: createEvent() on Monad",
+    detail: "POST /api/dispense takes sheetId + date + imageUri. The API route signs and sends createEvent() to the contract using ethers.js with the admin private key.",
+    code: `// POST /api/dispense (server-side)\nawait contract.createEvent(name, desc, imageUri, unixDate);`,
   },
   {
-    time: "2:00",
-    step: "Toggle minting on/off",
-    detail: "setEventActive() flips the mint gate per event — no redeployment needed",
-    code: `writeContract({ functionName: "setEventActive",\n  args: [eventId, true] });`,
+    time: "2:10",
+    step: "Server: sheet → wallet map → batchMint()",
+    detail: "The API route reads the call's attendance sheet, cross-references Discord IDs against the crew sheet to get wallet addresses, then calls batchMint() for all matched wallets in one tx.",
+    code: `const wallets = await resolveWallets(attendanceSheet, crewSheet);\nawait contract.batchMint(eventId, wallets);`,
   },
   {
-    time: "2:30",
-    step: "Dispense tokens to attendees",
-    detail: "Discord bot exports the attendance list → dispense script batch-mints an ERC-721 to every wallet that was in the call. No manual step, no farming.",
-    code: `npm run dispense  // reads discord attendance list, mints to each wallet`,
+    time: "2:35",
+    step: "Result: minted · skipped · no wallet",
+    detail: "The dashboard shows a receipt: tokens sent, skipped (already minted), and attendees with no wallet on file. The tx hash links to Monad Explorer.",
+    code: `// { mintedCount, skippedCount, noWalletCount, txHash }\n// sheet rows marked as done automatically`,
+  },
+];
+
+const REUSE_POINTS = [
+  {
+    icon: "🔧",
+    heading: "The contract is chain-agnostic",
+    body: "Deployed on any EVM chain. Change one env var to point at your network and the whole app follows — Monad, Base, Ethereum, whatever your DAO runs on.",
+  },
+  {
+    icon: "📋",
+    heading: "The sheet structure is the only convention",
+    body: "Master sheet: date · attendance sheet link · count. Attendance sheet: name · Discord ID. Crew sheet: Discord ID · wallet. That's it. Your DAO probably already has this.",
+  },
+  {
+    icon: "🚀",
+    heading: "No Solidity required to operate",
+    body: "Deploy once, hand over the admin wallet, done. The operator just needs the dashboard URL and their Google Sheets — everything else is automated.",
+  },
+];
+
+const SETUP_STEPS = [
+  {
+    action: "Deploy the contract",
+    detail: "Run the Hardhat deploy script against any EVM testnet or mainnet. Takes 30 seconds.",
+    code: `npx hardhat run scripts/deploy.ts --network monad`,
+  },
+  {
+    action: "Set up three Google Sheets",
+    detail: "Master sheet (one row per call), an attendance sheet per call, and a crew sheet mapping Discord ID → wallet address.",
+    code: null,
+  },
+  {
+    action: "Fill in .env.local",
+    detail: "Contract address, RPC URL, admin private key, Google service account credentials, master sheet ID.",
+    code: `NEXT_PUBLIC_PIZZA_POAP_CONTRACT=0x...\nGOOGLE_SERVICE_ACCOUNT_EMAIL=...\nMASTER_SHEET_ID=...`,
+  },
+  {
+    action: "Run the frontend",
+    detail: "npm install && npm run dev. Connect the admin wallet and the dashboard is live. No other infrastructure needed.",
+    code: `cd frontend && npm install && npm run dev`,
   },
 ];
 
@@ -148,12 +201,13 @@ export default function DemoPage() {
             error-prone, and easy to game. We built a minimal admin dashboard that turns
             each call into an ERC-721 token —{" "}
             <span className="text-white font-medium">
-              one click to create an event, one script to dispense tokens to attendees.
+              one click to create an event, one button to dispense tokens to every attendee.
             </span>
           </p>
           <p className="mt-2 text-zinc-500 max-w-2xl text-sm">
-            The dispense script pulls directly from the Discord attendance bot output —
-            no manual list, no human error, no farming.
+            Attendance comes straight from Google Sheets — no manual list, no copy-paste,
+            no human error. The app cross-references Discord IDs to wallet addresses and
+            batch-mints on Monad automatically.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -174,12 +228,13 @@ export default function DemoPage() {
         <section>
           <SectionLabel number="02" label="Tech Stack" time="~45 sec" />
           <h2 className="mt-3 text-3xl font-bold tracking-tight">
-            Seven layers, zero backend server.
+            Eight layers, zero custom backend.
           </h2>
           <p className="mt-3 text-zinc-400 max-w-2xl">
-            Everything runs in the browser, on-chain, or as a local script. No DB,
-            no API route, no middleware. The Discord bot is the only external data source —
-            and it just produces a flat list of wallet addresses.
+            No database, no separate server, no deploy pipeline. The Next.js API route
+            is the only server-side code — it reads Google Sheets, signs transactions
+            with ethers.js, and calls the contract. Everything else runs in the browser
+            or on-chain.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -222,6 +277,32 @@ export default function DemoPage() {
             snippets are the actual lines doing the work.
           </p>
 
+          {/* dashboard screenshot */}
+          <div className="mt-8 rounded-2xl border border-zinc-700 bg-zinc-900 p-3 shadow-2xl">
+            <div className="rounded-xl overflow-hidden border border-zinc-800">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/dashboard-screenshot.png"
+                alt="Pizza Token admin dashboard — showing 3 total events, 33 tokens minted, and the Send Call Tokens panel after a successful dispense"
+                className="w-full"
+              />
+            </div>
+            {/* annotated callouts */}
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: "Stats bar",       detail: "Live on-chain reads — total events + tokens minted" },
+                { label: "Send Call Tokens", detail: "Unified 3-step flow: pick call → artwork → send" },
+                { label: "Result receipt",   detail: "Minted / skipped / no wallet / already minted breakdown" },
+                { label: "Past Events",      detail: "Toggle mint active/inactive per event, no redeployment" },
+              ].map((c) => (
+                <div key={c.label} className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+                  <p className="text-xs font-semibold text-orange-400">{c.label}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">{c.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-8 relative">
             {/* vertical connector line */}
             <div className="absolute left-[3.25rem] top-0 bottom-0 w-px bg-zinc-800 hidden sm:block" />
@@ -259,14 +340,62 @@ export default function DemoPage() {
           </div>
         </section>
 
-        {/* ── section 5: cta ── */}
-        <section className="rounded-2xl border border-orange-900/40 bg-orange-950/20 p-10 text-center">
+        {/* ── section 5: built for every dao ── */}
+        <section>
+          <SectionLabel number="05" label="Built for Every DAO" time="~30 sec" />
+          <h2 className="mt-3 text-3xl font-bold tracking-tight">
+            PizzaDAO builds infrastructure, not just tools for itself.
+          </h2>
+          <p className="mt-3 text-zinc-400 max-w-2xl">
+            Pizza Token is intentionally generic. Any DAO that tracks attendance in
+            Google Sheets and wants on-chain proof-of-participation can run this —
+            no Solidity knowledge required, no new contract needed.
+          </p>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {REUSE_POINTS.map((p) => (
+              <div key={p.heading} className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+                <span className="text-3xl">{p.icon}</span>
+                <h3 className="mt-3 text-sm font-semibold text-white">{p.heading}</h3>
+                <p className="mt-1 text-xs text-zinc-400 leading-relaxed">{p.body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* setup steps */}
+          <div className="mt-8">
+            <p className="mb-4 text-sm font-semibold text-zinc-300">
+              Another DAO can be up and running in 4 steps:
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SETUP_STEPS.map((s, i) => (
+                <div key={i} className="flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-600 text-xs font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{s.action}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">{s.detail}</p>
+                    {s.code && (
+                      <pre className="mt-2 rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-xs text-orange-300 font-mono overflow-x-auto">
+                        {s.code}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── section 6: cta ── */}
+        <section className="rounded-2xl border border-orange-900/40 bg-orange-950/20 p-10 text-center" id="cta">
           <span className="text-5xl">🍕</span>
           <h2 className="mt-4 text-2xl font-bold">See it live.</h2>
           <p className="mt-2 text-sm text-zinc-400 max-w-md mx-auto">
-            Connect the admin wallet on Monad Testnet, create an event in under 60 seconds,
-            then run the dispense script — every wallet on the Discord attendance list gets
-            their token automatically. No staff. No farming.
+            Connect the admin wallet on Monad Testnet. Pick a call, drop the artwork,
+            hit Send — the app reads the Google Sheet, creates the on-chain event, and
+            batch-mints to every attendee wallet. Under 60 seconds, zero staff.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 justify-center">
             <Link
@@ -294,7 +423,7 @@ export default function DemoPage() {
       {/* footer */}
       <footer className="border-t border-zinc-800 mt-12 py-6 text-center">
         <p className="text-xs text-zinc-600 font-mono">
-          Pizza Token · PizzaDAO · Monad Testnet · IPFS · Next.js · wagmi · RainbowKit · Discord
+          Pizza Token · PizzaDAO · Monad Testnet · IPFS · Google Sheets · Next.js · wagmi · RainbowKit
         </p>
       </footer>
 
